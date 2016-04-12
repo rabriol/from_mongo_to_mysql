@@ -17,14 +17,14 @@ def save_on_mysql(document):
     # warnings.filterwarnings('ignore', category = MySQLdb.Warning)
 
     try:
-        check_acordao = ("SELECT COUNT(ID) FROM ACORDAO WHERE ID = '%s';") % document['acordaoId'].encode('utf-8')
+        check_acordao = ("SELECT ID FROM ACORDAO WHERE ID = '%s';") % document['acordaoId'].encode('utf-8')
         cursor.execute(check_acordao)
 
-        acordao_total = cursor.fetchone()
+        acordao_result = cursor.fetchone()
 
         # print 'Resultado da consulta %s' % str(acordao_total)
 
-        if acordao_total[0] == 0l:
+        if acordao_result == None:
             # print 'INSERINDO REGISTRO EM ACORDAOS'
 
             publicacao = replace(document['publicacao'].encode('utf-8'), '\n', '\\n')
@@ -67,6 +67,82 @@ def save_on_mysql(document):
                                     document['doutrinas'].encode('utf-8')
                                 )
             cursor.execute(insert_acordao)
+
+            # for acordao_citado in document['citacoes']:
+            #     insert_citacoes = ("""INSERT INTO CITACAO(ID_ACORDAO, ID_ACORDAO_CITADO) VALUES ('%s', '%s');""") % \
+            #                   (document['acordaoId'], acordao_citado)
+            #     cursor.execute(insert_citacoes)
+
+            # for acordao_citado in document['similares']:
+            #     insert_citacoes = ("""INSERT INTO SIMILAR(IDT_ACORDAO, ID_ACORDAO_CITADO) VALUES ('%s', '%s');""") % \
+            #                   (document['acordaoId'], acordao_citado)
+            #     cursor.execute(insert_citacoes)
+
+            # INSERT PROCURADOR E PARTES_PROCURADOR
+            try:
+                for procurador in document['partes']['procurador']:
+                    check_procurador = ("SELECT ID FROM PROCURADOR WHERE NOME = '%s';") % procurador.encode('utf-8')
+                    cursor.execute(check_procurador)
+
+                    procurador_result = cursor.fetchone()
+
+                    if procurador_result == None:
+                        insert_procurador = ("INSERT INTO PROCURADOR(NOME) VALUES ('%s');") % (procurador.encode('utf-8'))
+                        cursor.execute(insert_procurador)
+
+                    check_procurador = ("SELECT ID FROM PROCURADOR WHERE NOME = '%s';") % procurador.encode('utf-8')
+                    cursor.execute(check_procurador)
+
+                    result = cursor.fetchone()
+                    procurador_id = result[0]
+
+                    check_partes_procurador = ("""SELECT ID_ACORDAO, ID_PROCURADOR FROM PARTES_PROCURADOR WHERE ID_ACORDAO = '%s'
+                                                AND ID_PROCURADOR = %s;""") % (document['acordaoId'].encode('utf-8'), int(procurador_id))
+
+                    cursor.execute(check_partes_procurador)
+
+                    result = cursor.fetchone()
+
+                    if result == None:
+                        insert_partes_procurador = ("""INSERT INTO PARTES_PROCURADOR(ID_ACORDAO, ID_PROCURADOR) VALUES
+                                            ('%s', %s);""") % (document['acordaoId'].encode('utf-8'), int(procurador_id))
+                        cursor.execute(insert_partes_procurador)
+
+            except Exception:
+                pass
+
+            # INSERT INTIMADO E PARTES_INTIMADO
+            try:
+                for intimado in document['partes']['intimado']:
+                    check_intimado = ("SELECT ID FROM INTIMADO WHERE NOME = '%s';") % intimado.encode('utf-8')
+                    cursor.execute(check_intimado)
+
+                    intimado_result = cursor.fetchone()
+
+                    if intimado_result == None:
+                        insert_intimado = ("INSERT INTO INTIMADO(NOME) VALUES ('%s');") % (intimado.encode('utf-8'))
+                        cursor.execute(insert_intimado)
+
+                    check_intimado = ("SELECT ID FROM INTIMADO WHERE NOME = '%s';") % intimado.encode('utf-8')
+                    cursor.execute(check_intimado)
+
+                    result = cursor.fetchone()
+                    intimado_id = result[0]
+
+                    check_partes_intimado = ("""SELECT ID_ACORDAO, ID_INTIMADO FROM PARTES_INTIMADO WHERE ID_ACORDAO = '%s'
+                                                AND ID_INTIMADO = %s;""") % (document['acordaoId'].encode('utf-8'), int(intimado_id))
+
+                    cursor.execute(check_partes_intimado)
+
+                    result = cursor.fetchone()
+
+                    if result == None:
+                        insert_partes_intimado = ("""INSERT INTO PARTES_INTIMADO(ID_ACORDAO, ID_INTIMADO) VALUES
+                                            ('%s', %s);""") % (document['acordaoId'].encode('utf-8'), int(intimado_id))
+                        cursor.execute(insert_partes_intimado)
+
+            except Exception:
+                pass
 
         db.commit()
     except Exception, e:
@@ -118,16 +194,16 @@ def create_mysql_tables():
         print 'TABELA ACORDAO CRIADA COM SUCESSO'
 
         tag = """CREATE TABLE TAG (
-              ID_T INT NOT NULL AUTO_INCREMENT,
+              ID INT NOT NULL AUTO_INCREMENT,
               NOME VARCHAR(50) NOT NULL,
-              PRIMARY KEY(ID_T)
+              PRIMARY KEY(ID)
               ) ENGINE=InnoDB"""
         cursor.execute(tag)
         print 'TABELA TAG CRIADA COM SUCESSO'
 
         agravado = """CREATE TABLE AGRAVADO (
                 ID INT NOT NULL AUTO_INCREMENT,
-                NOME VARCHAR(50) NOT NULL,
+                NOME VARCHAR(100) NOT NULL,
                 PRIMARY KEY(ID)
                 ) ENGINE=InnoDB;"""
         cursor.execute(agravado)
@@ -135,7 +211,7 @@ def create_mysql_tables():
 
         agravante = """CREATE TABLE AGRAVANTE (
                 ID INT NOT NULL AUTO_INCREMENT,
-                NOME VARCHAR(50) NOT NULL,
+                NOME VARCHAR(100) NOT NULL,
                 PRIMARY KEY(ID)
                 ) ENGINE=InnoDB;"""
         cursor.execute(agravante)
@@ -143,7 +219,7 @@ def create_mysql_tables():
 
         advogado = """CREATE TABLE ADVOGADO (
                 ID INT NOT NULL AUTO_INCREMENT,
-                NOME VARCHAR(50) NOT NULL,
+                NOME VARCHAR(100) NOT NULL,
                 PRIMARY KEY(ID)
                 ) ENGINE=InnoDB;"""
         cursor.execute(advogado)
@@ -151,7 +227,7 @@ def create_mysql_tables():
 
         intimado = """CREATE TABLE INTIMADO (
                 ID INT NOT NULL AUTO_INCREMENT,
-                NOME VARCHAR(50) NOT NULL,
+                NOME VARCHAR(100) NOT NULL,
                 PRIMARY KEY(ID)
                 ) ENGINE=InnoDB;"""
         cursor.execute(intimado)
@@ -159,7 +235,7 @@ def create_mysql_tables():
 
         procurador = """CREATE TABLE PROCURADOR (
                 ID INT NOT NULL AUTO_INCREMENT,
-                NOME VARCHAR(50) NOT NULL,
+                NOME VARCHAR(100) NOT NULL,
                 PRIMARY KEY(ID)
                 ) ENGINE=InnoDB;"""
         cursor.execute(procurador)
@@ -247,7 +323,6 @@ def create_mysql_tables():
 
 
 if __name__ == '__main__':
-
     connection = MongoClient('localhost', 27017)
     db = connection['DJs']
 
